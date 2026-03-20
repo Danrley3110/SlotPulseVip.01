@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlotPulse.VIP — Estatísticas em Tempo Real</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --g:#00ff88;--gd:#00cc6a;--gg:rgba(0,255,136,0.22);--gf:rgba(0,255,136,0.07);
+  --bg:#050a07;--cb:#0a1410;--cd:#0d2018;--tx:#d4ffe9;--td:#6aad87;
+  --red:#ff4466;--yel:#ffd700;
+  --gold1:#ffd700;--gold2:#ffb300;--gold3:#ffe066;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--tx);font-family:'Rajdhani',sans-serif;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,136,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+/* ══ LOADING ══ */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease,visibility .6s ease;}
+#loading-screen.hide{opacity:0;visibility:hidden;pointer-events:none;}
+.ls-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.ls-particle{position:absolute;border-radius:50%;background:var(--g);opacity:0;animation:particle-float linear infinite;}
+.ls-logo-wrap{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:48px;}
+.ls-logo-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:320px;height:120px;background:radial-gradient(ellipse,rgba(0,255,136,0.15) 0%,transparent 70%);pointer-events:none;animation:glow-pulse 1.5s ease-in-out infinite;}
+.ls-logo-row{display:flex;align-items:baseline;position:relative;z-index:1;}
+.ls-slot{font-family:'Exo 2',sans-serif;font-weight:300;font-size:3.8rem;letter-spacing:8px;background:linear-gradient(135deg,#00ff88,#00ffcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:logo-reveal .8s ease forwards;}
+.ls-pulse{font-family:'Exo 2',sans-serif;font-weight:900;font-size:3.8rem;letter-spacing:2px;background:linear-gradient(135deg,#00ffcc,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:logo-reveal .8s ease .15s both;}
+.ls-dot{font-family:'Exo 2',sans-serif;font-weight:300;font-size:2.4rem;color:rgba(0,255,136,0.4);margin:0 2px;animation:logo-reveal .8s ease .25s both;}
+.ls-vip{font-family:'Exo 2',sans-serif;font-weight:900;font-size:2.2rem;letter-spacing:4px;background:linear-gradient(135deg,var(--gold3),var(--gold1),var(--gold2),var(--gold3));background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:logo-reveal .8s ease .35s both,goldshine 2s linear infinite .35s;filter:drop-shadow(0 0 10px rgba(255,215,0,0.5));}
+.ls-bar{display:block;height:2px;background:linear-gradient(90deg,transparent,var(--g),var(--gold1),var(--g),transparent);border-radius:2px;margin-top:4px;animation:bar-expand .8s ease .5s both;}
+.ls-tagline{font-family:'Orbitron',monospace;font-size:.72rem;color:var(--td);letter-spacing:4px;text-transform:uppercase;animation:fade-in .8s ease .7s both;margin-bottom:52px;}
+.ls-progress-wrap{width:260px;animation:fade-in .5s ease .6s both;}
+.ls-progress-label{display:flex;justify-content:space-between;font-size:.7rem;color:var(--td);letter-spacing:2px;margin-bottom:8px;}
+.ls-progress-label span:last-child{color:var(--g);font-family:'Orbitron',monospace;}
+.ls-progress-bg{height:4px;background:var(--cd);border-radius:99px;overflow:hidden;}
+.ls-progress-fill{height:100%;background:linear-gradient(90deg,var(--g),var(--gold1));border-radius:99px;width:0%;transition:width .1s linear;box-shadow:0 0 8px rgba(0,255,136,0.4);}
+.ls-steps{font-size:.65rem;color:var(--td);letter-spacing:2px;margin-top:10px;text-align:center;min-height:16px;animation:fade-in .5s ease .8s both;}
+
+@keyframes logo-reveal{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+@keyframes bar-expand{from{width:0;opacity:0;}to{width:100%;opacity:1;}}
+@keyframes fade-in{from{opacity:0;}to{opacity:1;}}
+@keyframes glow-pulse{0%,100%{opacity:.6;}50%{opacity:1;}}
+@keyframes goldshine{0%{background-position:0% center;}100%{background-position:200% center;}}
+@keyframes particle-float{0%{transform:translateY(100vh) scale(0);opacity:0;}10%{opacity:.6;}90%{opacity:.3;}100%{transform:translateY(-10vh) scale(1.2);opacity:0;}}
+@keyframes barslide{0%,100%{opacity:.5;transform:scaleX(.7);}50%{opacity:1;transform:scaleX(1);}}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+/* ══ NOTIFICAÇÕES — topo direito, abaixo da nav ══ */
+#notif-container{
+  position:fixed;
+  top:68px;        /* logo abaixo da navbar */
+  right:14px;
+  z-index:500;
+  display:flex;flex-direction:column;gap:7px;
+  pointer-events:none;
+  max-width:240px;
+}
+.notif{
+  background:rgba(10,20,16,0.96);
+  border:1px solid rgba(0,255,136,0.22);
+  border-left:3px solid var(--g);
+  border-radius:10px;
+  padding:9px 12px;
+  display:flex;align-items:center;gap:9px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.7),0 0 12px rgba(0,255,136,0.05);
+  animation:notif-in .35s cubic-bezier(.4,0,.2,1) forwards;
+  pointer-events:none;
+}
+.notif.out{animation:notif-out .35s ease forwards;}
+.notif-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#0d2018,#071a0e);border:1px solid rgba(0,255,136,0.18);display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;}
+.notif-name{font-family:'Exo 2',sans-serif;font-size:.74rem;font-weight:700;color:var(--tx);margin-bottom:1px;}
+.notif-msg{font-size:.66rem;color:var(--td);letter-spacing:.3px;}
+.notif-msg em{color:var(--g);font-style:normal;}
+.notif-dot{width:5px;height:5px;border-radius:50%;background:var(--g);box-shadow:0 0 5px var(--g);flex-shrink:0;margin-left:auto;animation:blink 1s ease-in-out infinite;}
+@keyframes notif-in{from{opacity:0;transform:translateX(18px) scale(.96);}to{opacity:1;transform:none;}}
+@keyframes notif-out{from{opacity:1;transform:none;}to{opacity:0;transform:translateX(18px) scale(.96);}}
+
+/* ══ WHATSAPP — menor (~20%) ══ */
+#float-wa{position:fixed;bottom:20px;right:16px;z-index:500;display:flex;align-items:center;cursor:pointer;text-decoration:none;}
+.fwa-bubble{background:rgba(10,20,16,0.92);border:1px solid rgba(0,255,136,0.18);border-radius:8px 0 0 8px;padding:6px 10px 6px 12px;font-family:'Orbitron',monospace;font-size:.52rem;color:var(--g);letter-spacing:1px;white-space:nowrap;transform:translateX(6px);opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;}
+#float-wa:hover .fwa-bubble{opacity:1;transform:translateX(0);}
+/* 52 → 42px (~19% menor) */
+.fwa-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#25d366,#128c3e);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 14px rgba(37,211,102,0.38),0 0 0 0 rgba(37,211,102,0.25);animation:wa-pulse 2.5s ease-in-out infinite;transition:transform .2s;flex-shrink:0;}
+#float-wa:hover .fwa-btn{transform:scale(1.07);}
+@keyframes wa-pulse{0%,100%{box-shadow:0 3px 14px rgba(37,211,102,0.38),0 0 0 0 rgba(37,211,102,0.25);}50%{box-shadow:0 3px 14px rgba(37,211,102,0.45),0 0 0 8px rgba(37,211,102,0);}}
+
+/* ══ SCREENS ══ */
+.screen{display:none;min-height:100vh;position:relative;z-index:1;}
+.screen.active{display:block;}
+#screen-welcome,#screen-login-entrar,#screen-login-criar{display:none;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;padding:24px;}
+#screen-welcome.active,#screen-login-entrar.active,#screen-login-criar.active{display:flex;}
+
+/* ══ LOGO ══ */
+.sp-logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:10px;}
+.sp-logo-row{display:flex;align-items:baseline;}
+.sp-slot{font-family:'Exo 2',sans-serif;font-weight:300;font-size:clamp(2.2rem,8vw,3.4rem);letter-spacing:6px;background:linear-gradient(135deg,#00ff88,#00ffcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 14px rgba(0,255,136,0.4));animation:glogopulse 3s ease-in-out infinite;}
+.sp-pulse{font-family:'Exo 2',sans-serif;font-weight:900;font-size:clamp(2.2rem,8vw,3.4rem);letter-spacing:2px;background:linear-gradient(135deg,#00ffcc,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 14px rgba(0,255,136,0.4));animation:glogopulse 3s ease-in-out infinite;}
+.sp-dot{font-family:'Exo 2',sans-serif;font-weight:300;font-size:clamp(1.4rem,5vw,2.2rem);color:rgba(0,255,136,0.45);margin:0 1px;}
+.sp-vip{font-family:'Exo 2',sans-serif;font-weight:900;font-size:clamp(1.3rem,4.5vw,2rem);letter-spacing:3px;background:linear-gradient(135deg,var(--gold3),var(--gold1),var(--gold2),var(--gold3));background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 8px rgba(255,215,0,0.55));animation:goldshine 2.5s linear infinite;position:relative;top:2px;}
+.sp-logo-bar{display:block;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--g),var(--gold1),var(--g),transparent);border-radius:2px;margin-top:3px;animation:barslide 2.5s ease-in-out infinite;}
+@keyframes glogopulse{0%,100%{filter:drop-shadow(0 0 14px rgba(0,255,136,0.4));}50%{filter:drop-shadow(0 0 28px rgba(0,255,136,0.7));}}
+
+.nav-logo-wrap{display:flex;align-items:baseline;}
+.nl-slot{font-family:'Exo 2',sans-serif;font-weight:300;font-size:1.25rem;letter-spacing:4px;background:linear-gradient(135deg,#00ff88,#00ffcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.nl-pulse{font-family:'Exo 2',sans-serif;font-weight:900;font-size:1.25rem;letter-spacing:1px;background:linear-gradient(135deg,#00ffcc,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.nl-dot{font-family:'Exo 2',sans-serif;font-weight:300;font-size:.9rem;color:rgba(0,255,136,0.4);margin:0 1px;}
+.nl-vip{font-family:'Exo 2',sans-serif;font-weight:900;font-size:.95rem;letter-spacing:2px;background:linear-gradient(135deg,var(--gold3),var(--gold1),var(--gold2),var(--gold3));background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:goldshine 2.5s linear infinite;filter:drop-shadow(0 0 5px rgba(255,215,0,0.45));position:relative;top:1px;}
+
+.big-tag{font-size:.85rem;color:var(--td);letter-spacing:3px;text-transform:uppercase;margin-bottom:36px;text-align:center;}
+
+/* ══ EXPIRY NOTICE — tela welcome ══ */
+.expiry-notice{
+  display:flex;align-items:flex-start;gap:8px;
+  background:rgba(255,215,0,0.05);
+  border:1px solid rgba(255,215,0,0.2);
+  border-radius:10px;
+  padding:11px 14px;
+  margin-top:14px;
+  max-width:400px;
+  width:100%;
+}
+.expiry-notice svg{flex-shrink:0;margin-top:1px;}
+.expiry-notice p{font-size:.74rem;color:rgba(255,215,0,0.8);line-height:1.5;letter-spacing:.3px;}
+.expiry-notice strong{color:var(--gold1);font-weight:700;}
+
+/* ══ WELCOME / FORM ══ */
+.welcome-box{background:var(--cb);border:1px solid var(--cd);border-top:1px solid rgba(0,255,136,0.25);border-radius:18px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 0 80px rgba(0,0,0,0.8);}
+.welcome-box h2{font-family:'Orbitron',monospace;font-size:.78rem;color:var(--g);letter-spacing:2px;text-align:center;margin-bottom:26px;}
+.btn-welcome{width:100%;padding:14px;border-radius:10px;font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;margin-bottom:12px;border:none;display:flex;align-items:center;justify-content:center;gap:9px;}
+.btn-welcome.primary{background:linear-gradient(135deg,var(--g),var(--gd));color:#050a07;}
+.btn-welcome.primary:hover{box-shadow:0 0 28px var(--gg);transform:translateY(-1px);}
+.btn-welcome.outline{background:transparent;border:1px solid rgba(0,255,136,0.35);color:var(--g);}
+.btn-welcome.outline:hover{background:var(--gf);}
+.btn-back{background:transparent;border:none;color:var(--td);font-family:'Rajdhani',sans-serif;font-size:.84rem;letter-spacing:1px;cursor:pointer;margin-top:14px;display:flex;align-items:center;gap:6px;}
+.btn-back:hover{color:var(--g);}
+.form-box{background:var(--cb);border:1px solid var(--cd);border-top:1px solid rgba(0,255,136,0.25);border-radius:18px;padding:34px 30px;width:100%;max-width:400px;box-shadow:0 0 80px rgba(0,0,0,0.8);}
+.form-box h2{font-family:'Orbitron',monospace;font-size:.76rem;color:var(--g);letter-spacing:2px;text-align:center;margin-bottom:24px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:.72rem;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.field input{width:100%;background:rgba(0,255,136,0.04);border:1px solid var(--cd);border-radius:8px;padding:11px 13px;color:var(--tx);font-family:'Rajdhani',sans-serif;font-size:.96rem;outline:none;transition:border-color .2s,box-shadow .2s;}
+.field input:focus{border-color:var(--g);box-shadow:0 0 0 3px var(--gg);}
+.solicitar-row{display:flex;gap:8px;align-items:stretch;}
+.solicitar-row input{flex:1;}
+.btn-solicitar{background:transparent;border:1px solid var(--g);color:var(--g);font-family:'Orbitron',monospace;font-size:.54rem;letter-spacing:1px;padding:0 11px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background .2s;text-decoration:none;display:flex;align-items:center;gap:5px;}
+.btn-solicitar:hover{background:var(--gf);}
+.btn-primary-full{width:100%;margin-top:18px;background:linear-gradient(135deg,var(--g),var(--gd));border:none;border-radius:8px;padding:12px;color:#050a07;font-family:'Orbitron',monospace;font-size:.76rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:box-shadow .2s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-primary-full:hover{box-shadow:0 0 26px var(--gg);transform:translateY(-1px);}
+.form-error{color:var(--red);font-size:.77rem;text-align:center;margin-top:8px;display:none;}
+
+/* ══ EXPIRED NOTICE no form de entrar ══ */
+.form-expiry-note{
+  display:flex;align-items:flex-start;gap:7px;
+  background:rgba(255,215,0,0.04);border:1px solid rgba(255,215,0,0.18);
+  border-radius:8px;padding:9px 12px;margin-top:14px;
+}
+.form-expiry-note svg{flex-shrink:0;margin-top:1px;}
+.form-expiry-note span{font-size:.7rem;color:rgba(255,215,0,0.75);line-height:1.5;letter-spacing:.3px;}
+.form-expiry-note strong{color:var(--gold1);}
+
+/* ══ EXPIRED SCREEN ══ */
+#screen-expired{display:none;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;padding:24px;}
+#screen-expired.active{display:flex;}
+.expired-box{background:var(--cb);border:1px solid rgba(255,68,102,0.3);border-top:2px solid var(--red);border-radius:18px;padding:40px 32px;width:100%;max-width:400px;text-align:center;}
+.expired-icon{font-size:3rem;margin-bottom:16px;filter:drop-shadow(0 0 12px rgba(255,68,102,0.4));}
+.expired-title{font-family:'Orbitron',monospace;font-size:.9rem;color:var(--red);letter-spacing:2px;margin-bottom:10px;}
+.expired-msg{font-size:.9rem;color:var(--td);line-height:1.6;margin-bottom:20px;}
+.expired-msg strong{color:var(--tx);}
+
+/* ══ NAV ══ */
+nav{position:sticky;top:0;z-index:100;background:rgba(5,10,7,0.93);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,255,136,0.08);display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:56px;}
+.nav-r{display:flex;align-items:center;gap:12px;}
+.nav-user{font-size:.8rem;color:var(--td);letter-spacing:1px;}
+.nav-user span{color:var(--g);}
+/* DIAS RESTANTES badge */
+.nav-days{font-family:'Orbitron',monospace;font-size:.6rem;letter-spacing:1px;padding:3px 8px;border-radius:99px;border:1px solid;display:flex;align-items:center;gap:4px;}
+.nav-days.ok{color:var(--g);border-color:rgba(0,255,136,0.3);background:rgba(0,255,136,0.05);}
+.nav-days.warn{color:var(--yel);border-color:rgba(255,215,0,0.35);background:rgba(255,215,0,0.05);}
+.nav-days.critical{color:var(--red);border-color:rgba(255,68,102,0.35);background:rgba(255,68,102,0.05);}
+.btn-sair{background:transparent;border:1px solid rgba(255,68,102,0.35);color:var(--red);font-family:'Rajdhani',sans-serif;font-size:.76rem;letter-spacing:1px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:5px;}
+.btn-sair:hover{background:rgba(255,68,102,0.1);}
+.ctn{max-width:1280px;margin:0 auto;padding:0 16px;}
+
+/* ══ BANNERS ══ */
+.banner-sec{padding:22px 0 12px;}
+.banner-track{overflow:hidden;border-radius:13px;border:1px solid rgba(0,255,136,0.12);}
+.banner-slides{display:flex;transition:transform .6s cubic-bezier(.4,0,.2,1);}
+.banner-slide{min-width:100%;padding:26px 30px;background:linear-gradient(135deg,#0a1a10,#0d2018 60%,#051008);position:relative;overflow:hidden;}
+.banner-slide::before{content:'';position:absolute;top:-50%;right:-8%;width:320px;height:320px;background:radial-gradient(circle,rgba(0,255,136,0.07) 0%,transparent 70%);pointer-events:none;}
+.b-tag{display:flex;align-items:center;gap:7px;font-family:'Orbitron',monospace;font-size:.58rem;color:var(--g);letter-spacing:3px;margin-bottom:9px;opacity:.85;}
+.b-title{font-family:'Exo 2',sans-serif;font-size:clamp(1.05rem,3vw,1.7rem);font-weight:700;color:#fff;line-height:1.3;margin-bottom:5px;}
+.b-title em{color:var(--g);font-style:normal;}
+.b-sub{font-size:.88rem;color:var(--td);letter-spacing:.5px;}
+.bdots{display:flex;justify-content:center;gap:7px;margin-top:11px;}
+.bdot{width:7px;height:7px;border-radius:50%;background:var(--cd);cursor:pointer;transition:background .3s,transform .2s;}
+.bdot.active{background:var(--g);transform:scale(1.35);}
+
+/* ══ LIVE BAR ══ */
+.live-bar{display:flex;gap:16px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--cd);margin-bottom:22px;}
+.li{display:flex;align-items:center;gap:7px;font-size:.81rem;color:var(--td);}
+.ldot{width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:blink 1.2s ease-in-out infinite;flex-shrink:0;}
+.lnum{color:var(--g);font-family:'Orbitron',monospace;font-size:.83rem;}
+.sec-title{font-family:'Orbitron',monospace;font-size:.86rem;color:var(--g);letter-spacing:3px;text-transform:uppercase;margin-bottom:17px;display:flex;align-items:center;gap:10px;}
+.sec-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(0,255,136,0.3),transparent);}
+
+/* ══ GAMES ══ */
+.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:13px;margin-bottom:48px;}
+.gc{background:var(--cb);border:1px solid var(--cd);border-radius:13px;overflow:hidden;transition:transform .2s,box-shadow .2s,border-color .2s;cursor:pointer;}
+.gc:hover{transform:translateY(-4px);box-shadow:0 8px 28px rgba(0,255,136,0.1);border-color:rgba(0,255,136,0.25);}
+.gc-thumb{position:relative;width:100%;height:120px;background:linear-gradient(135deg,#0d2018,#071a0e);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.gc-thumb::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,255,136,0.06),transparent 70%);}
+.gc-emoji{font-size:2.5rem;position:relative;z-index:1;filter:drop-shadow(0 0 10px rgba(0,255,136,0.2));}
+.gc-badge{position:absolute;bottom:5px;left:5px;background:rgba(0,0,0,0.76);border:1px solid rgba(0,255,136,0.18);border-radius:4px;padding:2px 6px;font-family:'Orbitron',monospace;font-size:.5rem;color:var(--g);letter-spacing:2px;z-index:2;}
+.gc-body{padding:10px;}
+.gc-name{font-family:'Exo 2',sans-serif;font-size:.78rem;font-weight:700;color:#fff;margin-bottom:2px;}
+.gc-prov{font-size:.67rem;color:var(--td);margin-bottom:8px;letter-spacing:1px;}
+.btn-ver{width:100%;background:var(--gf);border:1px solid rgba(0,255,136,0.2);border-radius:7px;padding:7px;color:var(--g);font-family:'Orbitron',monospace;font-size:.56rem;letter-spacing:2px;cursor:pointer;transition:background .2s,box-shadow .2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-ver:hover{background:rgba(0,255,136,0.1);box-shadow:0 0 12px var(--gg);}
+
+/* ══ MODAL ══ */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.87);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:14px;}
+.mov.open{display:flex;}
+.modal{background:var(--cb);border:1px solid rgba(0,255,136,0.18);border-radius:18px;width:100%;max-width:450px;padding:22px;position:relative;box-shadow:0 0 80px rgba(0,0,0,0.9);animation:min .3s cubic-bezier(.4,0,.2,1);max-height:92vh;overflow-y:auto;}
+@keyframes min{from{transform:translateY(16px) scale(0.97);opacity:0;}to{transform:none;opacity:1;}}
+.mcls{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.07);border-radius:50%;width:27px;height:27px;display:flex;align-items:center;justify-content:center;color:var(--td);font-size:.9rem;cursor:pointer;transition:all .2s;}
+.mcls:hover{background:rgba(255,68,102,0.15);color:var(--red);}
+.mn{font-family:'Exo 2',sans-serif;font-size:1.1rem;font-weight:700;color:var(--g);margin-bottom:2px;}
+.mp{font-size:.7rem;color:var(--td);letter-spacing:2px;margin-bottom:14px;}
+.pl{display:flex;justify-content:space-between;align-items:center;font-size:.7rem;color:var(--td);margin-bottom:6px;}
+.pv{font-family:'Exo 2',sans-serif;font-size:1.5rem;font-weight:900;color:var(--g);}
+.pbb{height:9px;background:#0d2018;border-radius:99px;overflow:hidden;margin-bottom:4px;border:1px solid var(--cd);}
+.pbf{height:100%;background:linear-gradient(90deg,#00cc6a,#00ff88);border-radius:99px;transition:width .9s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px rgba(0,255,136,0.4);}
+.pn{font-size:.65rem;color:var(--td);letter-spacing:1px;margin-bottom:12px;opacity:.65;display:flex;align-items:center;gap:5px;}
+.cr{display:flex;align-items:center;gap:8px;background:rgba(0,255,136,0.04);border:1px solid var(--cd);border-radius:9px;padding:9px 12px;margin-bottom:10px;}
+.cl{font-size:.7rem;color:var(--td);letter-spacing:1px;}
+.ct{font-family:'Exo 2',sans-serif;font-size:1.05rem;font-weight:700;color:var(--g);margin-left:auto;}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.sb{background:rgba(0,255,136,0.04);border:1px solid var(--cd);border-radius:9px;padding:10px 11px;}
+.sl{font-size:.62rem;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:4px;}
+.sv{font-family:'Exo 2',sans-serif;font-size:.88rem;font-weight:700;color:#fff;}
+.sv.g{color:var(--g);}
+.sv.y{color:var(--yel);}
+.mpt{font-size:.63rem;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+.mpt::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(0,255,136,0.2),transparent);}
+.mps{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;scrollbar-width:none;}
+.mps::-webkit-scrollbar{display:none;}
+.mpc{background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.14);border-radius:8px;padding:8px 11px;flex-shrink:0;display:flex;flex-direction:column;gap:5px;min-width:115px;}
+.mpc-name{font-family:'Exo 2',sans-serif;font-size:.7rem;font-weight:700;color:#fff;}
+.mpc-btn{background:linear-gradient(135deg,var(--g),var(--gd));border:none;border-radius:5px;padding:4px 8px;color:#050a07;font-family:'Orbitron',monospace;font-size:.5rem;font-weight:700;letter-spacing:1px;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;transition:box-shadow .2s;}
+.mpc-btn:hover{box-shadow:0 0 10px var(--gg);}
+
+/* ══ AFFILIATES ══ */
+.aff-sec{padding:0 0 80px;}
+.aff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:11px;}
+.ac{background:var(--cb);border:1px solid var(--cd);border-radius:11px;padding:15px;display:flex;flex-direction:column;gap:9px;transition:border-color .2s,transform .2s;}
+.ac:hover{border-color:rgba(0,255,136,0.22);transform:translateY(-2px);}
+.an{font-family:'Exo 2',sans-serif;font-size:.84rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;}
+.ad{font-size:.75rem;color:var(--td);line-height:1.5;}
+.btn-acc{background:linear-gradient(135deg,var(--g),var(--gd));border:none;border-radius:7px;padding:8px;color:#050a07;font-family:'Orbitron',monospace;font-size:.57rem;font-weight:700;letter-spacing:2px;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px;transition:box-shadow .2s;}
+.btn-acc:hover{box-shadow:0 0 14px var(--gg);}
+
+/* ══ ADMIN ══ */
+.adm-wrap{padding:24px 16px;max-width:900px;margin:0 auto;}
+.adm-hdr{font-family:'Exo 2',sans-serif;font-size:1.05rem;font-weight:700;color:var(--g);letter-spacing:2px;margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid var(--cd);display:flex;align-items:center;gap:8px;}
+.adm-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+.atab{background:transparent;border:1px solid var(--cd);border-radius:7px;padding:6px 13px;color:var(--td);font-family:'Rajdhani',sans-serif;font-size:.78rem;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px;}
+.atab.active,.atab:hover{background:var(--gf);border-color:var(--g);color:var(--g);}
+.apanel{display:none;}
+.apanel.active{display:block;}
+.acard{background:var(--cb);border:1px solid var(--cd);border-radius:11px;padding:18px;margin-bottom:11px;}
+.acard h3{font-family:'Orbitron',monospace;font-size:.7rem;color:var(--g);letter-spacing:2px;margin-bottom:11px;display:flex;align-items:center;gap:7px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:.65rem;color:var(--td);letter-spacing:2px;padding:7px 9px;border-bottom:1px solid var(--cd);}
+td{padding:9px 9px;font-size:.81rem;border-bottom:1px solid rgba(13,32,24,0.5);vertical-align:middle;}
+.sa{color:var(--g);font-size:.72rem;}
+.sb2{color:var(--red);font-size:.72rem;}
+.bsm{background:transparent;border:1px solid var(--cd);border-radius:5px;padding:3px 9px;font-size:.7rem;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;}
+.bsm.g{color:var(--g);border-color:rgba(0,255,136,0.28);}
+.bsm.r{color:var(--red);border-color:rgba(255,68,102,0.28);}
+.af-form{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px;}
+.af-form input{background:rgba(0,255,136,0.04);border:1px solid var(--cd);border-radius:7px;padding:8px 10px;color:var(--tx);font-family:'Rajdhani',sans-serif;font-size:.84rem;outline:none;}
+.af-form input:focus{border-color:var(--g);}
+.af-form .full{grid-column:1/-1;}
+.tok-out{background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.28);border-radius:7px;padding:10px 13px;font-family:'Orbitron',monospace;font-size:.76rem;color:var(--g);letter-spacing:2px;text-align:center;margin-top:10px;display:none;word-break:break-all;}
+.lc-label{display:block;font-size:.68rem;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;}
+.lc-hint{font-size:.67rem;color:var(--td);opacity:.6;margin-bottom:10px;}
+.lc-input{width:100%;background:rgba(0,255,136,0.04);border:1px solid var(--cd);border-radius:7px;padding:8px 10px;color:var(--tx);font-family:'Rajdhani',sans-serif;font-size:.84rem;outline:none;margin-bottom:14px;}
+.lc-input:focus{border-color:var(--g);}
+footer{border-top:1px solid var(--cd);padding:18px;text-align:center;font-size:.7rem;color:var(--td);letter-spacing:2px;opacity:.45;}
+@media(max-width:560px){nav{padding:0 10px;}.af-form{grid-template-columns:1fr;}.af-form .full{grid-column:1;}.nav-days{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOADING ══ -->
+<div id="loading-screen">
+  <div class="ls-particles" id="ls-particles"></div>
+  <div class="ls-logo-wrap">
+    <div class="ls-logo-glow"></div>
+    <div class="ls-logo-row">
+      <span class="ls-slot">SLOT</span><span class="ls-pulse">PULSE</span><span class="ls-dot">.</span><span class="ls-vip">VIP</span>
+    </div>
+    <span class="ls-bar"></span>
+  </div>
+  <div class="ls-tagline">Carregando Plataforma Exclusiva</div>
+  <div class="ls-progress-wrap">
+    <div class="ls-progress-label"><span>INICIALIZANDO IA</span><span id="ls-pct">0%</span></div>
+    <div class="ls-progress-bg"><div class="ls-progress-fill" id="ls-fill"></div></div>
+    <div class="ls-steps" id="ls-steps">Conectando servidores...</div>
+  </div>
+</div>
+
+<!-- ══ WHATSAPP FLUTUANTE ══ -->
+<a id="float-wa" href="#" target="_blank" title="Suporte VIP">
+  <div class="fwa-bubble">SUPORTE VIP</div>
+  <div class="fwa-btn">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+  </div>
+</a>
+
+<!-- ══ NOTIFICAÇÕES (topo direito) ══ -->
+<div id="notif-container"></div>
+
+<!-- ══════════ TELA 1 — BEM-VINDO ══════════ -->
+<div id="screen-welcome" class="screen active">
+  <div class="sp-logo-wrap">
+    <div class="sp-logo-row"><span class="sp-slot">SLOT</span><span class="sp-pulse">PULSE</span><span class="sp-dot">.</span><span class="sp-vip">VIP</span></div>
+    <span class="sp-logo-bar"></span>
+  </div>
+  <div class="big-tag">Estatísticas IA • Tempo Real • Acesso Exclusivo</div>
+  <div class="welcome-box">
+    <h2>BEM-VINDO À PLATAFORMA</h2>
+    <button class="btn-welcome primary" onclick="show('screen-login-entrar')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      ENTRAR NA PLATAFORMA
+    </button>
+    <button class="btn-welcome outline" onclick="show('screen-login-criar')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/><line x1="12" y1="13" x2="12" y2="21"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+      CRIAR CONTA
+    </button>
+  </div>
+  <!-- AVISO DE EXPIRAÇÃO 30 DIAS -->
+  <div class="expiry-notice">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2" style="margin-top:1px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <p><strong>⏳ Acesso por 30 dias:</strong> Cada token é válido por <strong>30 dias</strong> a partir do cadastro. Após esse período, o acesso é encerrado automaticamente e um novo token será necessário para renovar.</p>
+  </div>
+</div>
+
+<!-- ══════════ TELA 2 — ENTRAR ══════════ -->
+<div id="screen-login-entrar" class="screen">
+  <div class="sp-logo-wrap"><div class="sp-logo-row"><span class="sp-slot">SLOT</span><span class="sp-pulse">PULSE</span><span class="sp-dot">.</span><span class="sp-vip">VIP</span></div><span class="sp-logo-bar"></span></div>
+  <div class="big-tag">Acesso com Token</div>
+  <div class="form-box">
+    <h2>ENTRAR NA PLATAFORMA</h2>
+    <div class="field"><label>Nome</label><input type="text" id="e-name" placeholder="Seu nome completo"></div>
+    <div class="field"><label>Token de Acesso</label><input type="text" id="e-token" placeholder="Ex: SP-XXXX-XXXX-XXXX"></div>
+    <button class="btn-primary-full" onclick="doEntrar()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      ENTRAR
+    </button>
+    <div id="e-err" class="form-error"></div>
+    <div class="form-expiry-note">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>O acesso é válido por <strong>30 dias</strong> após o cadastro. Token expirado? Solicite a renovação.</span>
+    </div>
+  </div>
+  <button class="btn-back" onclick="show('screen-welcome')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Voltar</button>
+</div>
+
+<!-- ══════════ TELA 3 — CRIAR CONTA ══════════ -->
+<div id="screen-login-criar" class="screen">
+  <div class="sp-logo-wrap"><div class="sp-logo-row"><span class="sp-slot">SLOT</span><span class="sp-pulse">PULSE</span><span class="sp-dot">.</span><span class="sp-vip">VIP</span></div><span class="sp-logo-bar"></span></div>
+  <div class="big-tag">Novo Cadastro</div>
+  <div class="form-box">
+    <h2>CRIAR CONTA</h2>
+    <div class="field"><label>Nome Completo</label><input type="text" id="c-name" placeholder="Seu nome completo"></div>
+    <div class="field"><label>Número de Telefone</label><input type="text" id="c-phone" placeholder="(11) 99999-9999"></div>
+    <div class="field">
+      <label>Token de Acesso</label>
+      <div class="solicitar-row">
+        <input type="text" id="c-token" placeholder="Cole seu token aqui">
+        <a id="btn-solicitar" class="btn-solicitar" href="#" target="_blank">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          SOLICITAR
+        </a>
+      </div>
+    </div>
+    <button class="btn-primary-full" onclick="doCriar()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+      CRIAR CONTA
+    </button>
+    <div id="c-err" class="form-error"></div>
+    <div class="form-expiry-note" style="margin-top:12px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Ao criar sua conta, seu acesso será válido por <strong>30 dias</strong>. Após esse período, será necessário adquirir um novo token para renovar o acesso.</span>
+    </div>
+  </div>
+  <button class="btn-back" onclick="show('screen-welcome')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Voltar</button>
+</div>
+
+<!-- ══════════ TELA 4 — PAINEL PRINCIPAL ══════════ -->
+<div id="screen-main" class="screen">
+  <nav>
+    <div class="nav-logo-wrap"><span class="nl-slot">SLOT</span><span class="nl-pulse">PULSE</span><span class="nl-dot">.</span><span class="nl-vip">VIP</span></div>
+    <div class="nav-r">
+      <div class="nav-user">Olá, <span id="nav-name">—</span></div>
+      <div id="nav-days-badge" class="nav-days ok">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="nav-days-text">— dias</span>
+      </div>
+      <button class="btn-sair" onclick="logout()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        SAIR
+      </button>
+    </div>
+  </nav>
+  <div class="ctn">
+    <div class="banner-sec">
+      <div class="banner-track">
+        <div class="banner-slides" id="bslides">
+          <div class="banner-slide"><div class="b-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>PLATAFORMA EXCLUSIVA</div><div class="b-title">A maior plataforma de<br><em>estatísticas de slots</em> do Brasil</div><div class="b-sub">Dados em tempo real • Atualização a cada minuto</div></div>
+          <div class="banner-slide"><div class="b-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>INTELIGÊNCIA ARTIFICIAL</div><div class="b-title">IA analisando<br><em>todos os jogos</em> agora</div><div class="b-sub">Probabilidades calculadas automaticamente pelo sistema</div></div>
+          <div class="banner-slide"><div class="b-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>ACESSO RESTRITO</div><div class="b-title">Estatísticas <em>exclusivas</em><br>para membros verificados</div><div class="b-sub">Plataforma fechada • Alta precisão analítica</div></div>
+          <div class="banner-slide"><div class="b-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>ALTA PRECISÃO</div><div class="b-title">Mais de <em>10.000 análises</em><br>realizadas hoje</div><div class="b-sub">Tecnologia de ponta • Resultados em tempo real</div></div>
+        </div>
+      </div>
+      <div class="bdots" id="bdots"></div>
+    </div>
+    <div class="live-bar">
+      <div class="li"><div class="ldot"></div> IA Online</div>
+      <div class="li"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg> Análises hoje:&nbsp;<span class="lnum" id="c-analyses">0</span></div>
+      <div class="li"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Membros ativos:&nbsp;<span class="lnum" id="c-members">0</span></div>
+      <div class="li"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Última atualização:&nbsp;<span class="lnum" id="c-upd">—</span></div>
+    </div>
+    <div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4m-2-2v4"/><circle cx="17" cy="12" r="1" fill="currentColor"/><circle cx="14" cy="12" r="1" fill="currentColor"/></svg>Jogos PG Soft — Estatísticas ao Vivo</div>
+    <div class="games-grid" id="games-grid"></div>
+    <div class="aff-sec">
+      <div class="sec-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Plataformas Recomendadas</div>
+      <div class="aff-grid" id="aff-grid"></div>
+    </div>
+  </div>
+  <footer>SLOTPULSE.VIP © 2025 — Plataforma de Estatísticas • Acesso Exclusivo</footer>
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="mov" id="mov" onclick="closeMov(event)">
+  <div class="modal">
+    <button class="mcls" onclick="closeModal()">✕</button>
+    <div class="mn" id="m-name"></div>
+    <div class="mp">PG SOFT • ESTATÍSTICAS AO VIVO</div>
+    <div class="pl"><span>PROBABILIDADE DE GANHO</span><span class="pv" id="m-prob">—%</span></div>
+    <div class="pbb"><div class="pbf" id="m-bar" style="width:0%"></div></div>
+    <div class="pn"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Atualização automática exatamente a cada minuto do relógio</div>
+    <div class="cr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="cl">HORÁRIO BRASIL — AO VIVO</span><span class="ct" id="m-clock">—</span></div>
+    <div class="sg">
+      <div class="sb"><div class="sl"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Valor Sugerido</div><div class="sv g" id="m-bet">—</div></div>
+      <div class="sb"><div class="sl"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Nº de Jogadas</div><div class="sv y" id="m-plays">—</div></div>
+      <div class="sb"><div class="sl"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Modo de Jogo</div><div class="sv" id="m-mode">—</div></div>
+      <div class="sb"><div class="sl"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Volatilidade</div><div class="sv" id="m-vol">—</div></div>
+    </div>
+    <div><div class="mpt"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Plataformas Sugeridas</div><div class="mps" id="mps"></div></div>
+  </div>
+</div>
+
+<!-- ══ TELA 5 — EXPIRADO ══ -->
+<div id="screen-expired" class="screen">
+  <div class="sp-logo-wrap"><div class="sp-logo-row"><span class="sp-slot">SLOT</span><span class="sp-pulse">PULSE</span><span class="sp-dot">.</span><span class="sp-vip">VIP</span></div><span class="sp-logo-bar"></span></div>
+  <div class="expired-box">
+    <div class="expired-icon">⏰</div>
+    <div class="expired-title">ACESSO EXPIRADO</div>
+    <div class="expired-msg">Seu período de <strong>30 dias</strong> chegou ao fim.<br><br>Para continuar acessando a plataforma, entre em contato e adquira um novo token de acesso.</div>
+    <a id="btn-renew" href="#" target="_blank" class="btn-primary-full" style="text-decoration:none;margin-top:0">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      RENOVAR ACESSO
+    </a>
+    <button class="btn-back" style="justify-content:center;margin-top:12px" onclick="logout()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Sair da conta
+    </button>
+  </div>
+</div>
+
+<!-- ══ TELA 6 — ADMIN ══ -->
+<div id="screen-admin" class="screen">
+  <div class="adm-wrap">
+    <div class="adm-hdr"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>PAINEL ADMIN — SLOTPULSE.VIP</div>
+    <div class="adm-tabs">
+      <button class="atab active" onclick="aTab('tokens')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>Tokens</button>
+      <button class="atab" onclick="aTab('users')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Usuários</button>
+      <button class="atab" onclick="aTab('affiliates')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Afiliados</button>
+      <button class="atab" onclick="aTab('config')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Config</button>
+      <button class="atab" style="color:var(--red);border-color:rgba(255,68,102,0.22)" onclick="logout()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair</button>
+    </div>
+    <div class="apanel active" id="panel-tokens">
+      <div class="acard"><h3><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>GERAR NOVO TOKEN (30 dias)</h3>
+        <button class="btn-primary-full" style="max-width:240px" onclick="adminGenToken()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>GERAR TOKEN ÚNICO</button>
+        <div class="tok-out" id="atokout"></div>
+      </div>
+      <div class="acard"><h3><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>TOKENS GERADOS</h3>
+        <table><thead><tr><th>Token</th><th>Status</th><th>Criado em</th></tr></thead><tbody id="ttable"></tbody></table>
+      </div>
+    </div>
+    <div class="apanel" id="panel-users">
+      <div class="acard"><h3><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>USUÁRIOS CADASTRADOS</h3>
+        <table><thead><tr><th>Nome</th><th>Telefone</th><th>Cadastro</th><th>Expira em</th><th>Status</th><th>Ação</th></tr></thead><tbody id="utable"></tbody></table>
+      </div>
+    </div>
+    <div class="apanel" id="panel-affiliates">
+      <div class="acard"><h3><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>ADICIONAR PLATAFORMA</h3>
+        <div class="af-form">
+          <input type="text" id="af-name" placeholder="Nome da plataforma">
+          <input type="text" id="af-link" placeholder="https://...">
+          <input type="text" id="af-desc" class="full" placeholder="Descrição curta">
+        </div>
+        <button class="btn-primary-full" style="max-width:175px" onclick="addAff()">ADICIONAR</button>
+      </div>
+      <div class="acard"><h3><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>PLATAFORMAS</h3>
+        <table><thead><tr><th>Nome</th><th>Link</th><th>Ação</th></tr></thead><tbody id="atable"></tbody></table>
+      </div>
+    </div>
+    <div class="apanel" id="panel-config">
+      <div class="acard"><h3><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>CONFIGURAÇÕES</h3>
+        <label class="lc-label">Link do Botão "SOLICITAR TOKEN"</label>
+        <div class="lc-hint">WhatsApp, Instagram, Telegram, etc.</div>
+        <input type="text" class="lc-input" id="cfg-solicit" placeholder="https://wa.me/5511999999999">
+        <label class="lc-label">Link do Botão WhatsApp Flutuante</label>
+        <div class="lc-hint">Botão verde de suporte na tela principal.</div>
+        <input type="text" class="lc-input" id="cfg-wa" placeholder="https://wa.me/5511999999999">
+        <label class="lc-label">Link do Botão "RENOVAR ACESSO" (tela expirado)</label>
+        <div class="lc-hint">Direciona o cliente cujo acesso venceu.</div>
+        <input type="text" class="lc-input" id="cfg-renew" placeholder="https://wa.me/5511999999999">
+        <button class="btn-primary-full" style="max-width:190px" onclick="saveConfig()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          SALVAR
+        </button>
+        <div id="cfg-ok" style="color:var(--g);font-size:.76rem;margin-top:9px;display:none;align-items:center;gap:5px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Salvo com sucesso!
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SEGURANÇA ADMIN ──
+// Token nunca é armazenado em texto puro — apenas o hash SHA-256
+const ADMIN_HASH='ccb9bbd03989d300b706d2d57aebd534eb072d624a0d2bde9d843fd8fdc07ea6';
+// Proteção contra força bruta: bloqueia após 5 tentativas erradas por 15 min
+const SEC = {
+  attempts: parseInt(sessionStorage.getItem('adm_att')||'0'),
+  lockedUntil: parseInt(sessionStorage.getItem('adm_lock')||'0'),
+  track(ok){
+    if(ok){sessionStorage.removeItem('adm_att');sessionStorage.removeItem('adm_lock');this.attempts=0;return;}
+    this.attempts++;
+    sessionStorage.setItem('adm_att',this.attempts);
+    if(this.attempts>=5){
+      const until=Date.now()+15*60*1000;
+      this.lockedUntil=until;
+      sessionStorage.setItem('adm_lock',until);
+    }
+  },
+  isLocked(){return Date.now()<this.lockedUntil;},
+  minutesLeft(){return Math.ceil((this.lockedUntil-Date.now())/60000);}
+};
+async function sha256(msg){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function verifyAdmin(token){
+  const h=await sha256(token.trim());
+  return h===ADMIN_HASH;
+}
+const EXPIRY_DAYS=30;
+const MS_30_DAYS=EXPIRY_DAYS*24*60*60*1000;
+
+let S={
+  tokens:JSON.parse(localStorage.getItem('sp_tok')||'[]'),
+  users:JSON.parse(localStorage.getItem('sp_usr')||'[]'),
+  affiliates:JSON.parse(localStorage.getItem('sp_aff')||JSON.stringify([
+    {id:1,name:"Bet365",link:"https://bet365.com",desc:"Plataforma internacional líder"},
+    {id:2,name:"Sportingbet",link:"https://sportingbet.com",desc:"Bônus exclusivos para novos membros"},
+    {id:3,name:"Betano",link:"https://betano.com",desc:"Odds incríveis e interface moderna"},
+  ])),
+  config:JSON.parse(localStorage.getItem('sp_cfg')||JSON.stringify({solicitLink:'https://wa.me/55',waLink:'https://wa.me/55',renewLink:'https://wa.me/55'})),
+  me:JSON.parse(sessionStorage.getItem('sp_me')||'null'),
+};
+function save(){localStorage.setItem('sp_tok',JSON.stringify(S.tokens));localStorage.setItem('sp_usr',JSON.stringify(S.users));localStorage.setItem('sp_aff',JSON.stringify(S.affiliates));localStorage.setItem('sp_cfg',JSON.stringify(S.config));}
+
+// ── EXPIRY HELPERS ──
+function daysLeft(joinedStr){
+  if(!joinedStr)return EXPIRY_DAYS;
+  // joinedStr é toLocaleString pt-BR, converter para Date
+  const parts=joinedStr.match(/(\d+)\/(\d+)\/(\d+)/);
+  if(!parts)return EXPIRY_DAYS;
+  const joinDate=new Date(parts[3],parts[2]-1,parts[1]);
+  const diff=joinDate.getTime()+MS_30_DAYS-Date.now();
+  return Math.ceil(diff/(1000*60*60*24));
+}
+function isExpired(u){return daysLeft(u.joined)<=0;}
+
+// ── GAMES ──
+const GAMES=[
+  {id:1,name:"Fortune Tiger",e:"🐯"},{id:2,name:"Fortune Mouse",e:"🐭"},{id:3,name:"Fortune Rabbit",e:"🐰"},
+  {id:4,name:"Fortune Dragon",e:"🐉"},{id:5,name:"Fortune Ox",e:"🐂"},{id:6,name:"Fortune Snake",e:"🐍"},
+  {id:7,name:"Fortune Rooster",e:"🐓"},{id:8,name:"Fortune Dog",e:"🐕"},{id:9,name:"Mahjong Ways",e:"🀄"},
+  {id:10,name:"Mahjong Ways 2",e:"🎴"},{id:11,name:"Wild Bandito",e:"🤠"},{id:12,name:"Ganesha Gold",e:"🐘"},
+  {id:13,name:"Garuda Gems",e:"🦅"},{id:14,name:"Medusa II",e:"🗿"},{id:15,name:"Candy Bonanza",e:"🍬"},
+  {id:16,name:"Muay Thai Champion",e:"🥊"},{id:17,name:"Dragon Hatch",e:"🥚"},{id:18,name:"Emoji Riches",e:"🎰"},
+  {id:19,name:"Lucky Neko",e:"🐱"},{id:20,name:"Treasures of Aztec",e:"🏛️"},{id:21,name:"Leprechaun Riches",e:"🍀"},
+  {id:22,name:"Hip Hop Panda",e:"🐼"},{id:23,name:"Piggy Gold",e:"🐷"},{id:24,name:"Tree of Fortune",e:"🌳"},
+  {id:25,name:"Hotpot",e:"🍲"},{id:26,name:"Dragon Legend",e:"🔮"},{id:27,name:"Medusa",e:"👁️"},
+  {id:28,name:"Plushie Frenzy",e:"🧸"},{id:29,name:"Symbols of Egypt",e:"🔱"},{id:30,name:"Ninja vs Samurai",e:"⚔️"},
+  {id:31,name:"Hood vs Wolf",e:"🐺"},{id:32,name:"Captain's Bounty",e:"🏴‍☠️"},{id:33,name:"Gem Saviour",e:"💎"},
+  {id:34,name:"Gem Saviour Conquest",e:"🏆"},{id:35,name:"Bali Vacation",e:"🌴"},{id:36,name:"Queen of Bounty",e:"👸"},
+  {id:37,name:"Ganesha Fortune",e:"🙏"},{id:38,name:"Speed Winner",e:"🏎️"},{id:39,name:"Prosperity Lion",e:"🦁"},
+  {id:40,name:"Phoenix Rises",e:"🔥"},{id:41,name:"Double Fortune",e:"💰"},{id:42,name:"Flirting Scholar",e:"📜"},
+  {id:43,name:"Shaolin Soccer",e:"⚽"},{id:44,name:"Opera Dynasty",e:"🎭"},{id:45,name:"Ways of the Qilin",e:"🦄"},
+  {id:46,name:"Steampunk Flying Witch",e:"🧙"},{id:47,name:"Heist Stakes",e:"💼"},{id:48,name:"Wild Fireworks",e:"🎆"},
+  {id:49,name:"Buffalo Win",e:"🦬"},{id:50,name:"Battleground Royale",e:"🎯"},{id:51,name:"Circus Delight",e:"🎪"},
+  {id:52,name:"Bikini Paradise",e:"🏖️"},{id:53,name:"Jurassic Kingdom",e:"🦕"},{id:54,name:"Diner Delights",e:"🍔"},
+  {id:55,name:"Bakery Bonanza",e:"🥐"},{id:56,name:"Cocktail Nights",e:"🍹"},{id:57,name:"Mafia Mayhem",e:"🕴️"},
+  {id:58,name:"Yakuza Honour",e:"⛩️"},{id:59,name:"Kraken Gold Rush",e:"🦑"},{id:60,name:"Shark Bounty",e:"🦈"},
+  {id:61,name:"Wings of Iguazu",e:"🦋"},{id:62,name:"Cash Mania",e:"💸"},{id:63,name:"Galaxy Miner",e:"🚀"},
+  {id:64,name:"Dragon's Treasure",e:"🪙"},{id:65,name:"Lucky Clover Lady",e:"🌸"},{id:66,name:"Songkran Splash",e:"💦"},
+  {id:67,name:"Candy Burst",e:"🍭"},{id:68,name:"Mystical Spirits",e:"✨"},
+];
+const BETS=[["R$0,40","R$0,80","R$1,20","R$1,60","R$2,00","R$2,40","R$2,80","R$3,60","R$3,80"],["R$0,40","R$0,80","R$1,20","R$2,00","R$2,80","R$3,60"],["R$0,40","R$0,80","R$1,60","R$2,40","R$3,20","R$3,80"],["R$0,40","R$0,80","R$1,20","R$1,60","R$2,00","R$3,60"]];
+const VOLS=["Baixa","Média","Alta","Muito Alta"],MODES=["Normal","Turbo","Ultra Turbo"],MICONS=["🟢","⚡","🔥"];
+function ri(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function ro(a){return a[ri(0,a.length-1)];}
+function stats(g){const p=ri(20,96),vi=p>=80?3:p>=60?2:p>=40?1:0,mi=ri(0,2);return{p,bet:ro(BETS[g.id%BETS.length]),plays:ri(5,30),mode:MICONS[mi]+' '+MODES[mi],vol:VOLS[vi]};}
+function mkTok(){const c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';let t='SP-';for(let i=0;i<4;i++){for(let j=0;j<4;j++)t+=c[ri(0,c.length-1)];if(i<3)t+='-';}return t;}
+
+// ── LOADING ──
+const LS_STEPS=['Conectando servidores...','Carregando banco de dados...','Inicializando IA...','Carregando jogos PG Soft...','Verificando estatísticas...','Plataforma pronta!'];
+function initLoadingParticles(){const c=document.getElementById('ls-particles');for(let i=0;i<18;i++){const p=document.createElement('div');p.className='ls-particle';const s=ri(3,8);p.style.cssText=`width:${s}px;height:${s}px;left:${ri(0,100)}%;animation-duration:${ri(4,9)}s;animation-delay:${ri(0,5)}s;opacity:0;`;c.appendChild(p);}}
+function runLoading(){
+  initLoadingParticles();
+  const fill=document.getElementById('ls-fill'),pct=document.getElementById('ls-pct'),steps=document.getElementById('ls-steps');
+  let progress=0,stepIdx=0;
+  const interval=setInterval(()=>{
+    progress+=ri(2,5);if(progress>100)progress=100;
+    fill.style.width=progress+'%';pct.textContent=progress+'%';
+    const si=Math.floor(progress/100*(LS_STEPS.length-1));
+    if(si!==stepIdx){stepIdx=si;steps.textContent=LS_STEPS[stepIdx];}
+    if(progress>=100){clearInterval(interval);steps.textContent=LS_STEPS[LS_STEPS.length-1];setTimeout(()=>document.getElementById('loading-screen').classList.add('hide'),600);}
+  },60);
+}
+
+// ── ROUTING ──
+function show(id){document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+
+// ── AUTH ──
+async function doEntrar(){
+  const name=document.getElementById('e-name').value.trim();
+  const token=document.getElementById('e-token').value.trim();
+  const err=document.getElementById('e-err');err.style.display='none';
+  if(!name||!token){err.textContent='Preencha nome e token.';err.style.display='block';return;}
+  // Proteção brute force
+  if(SEC.isLocked()){err.textContent=`Muitas tentativas. Aguarde ${SEC.minutesLeft()} min.`;err.style.display='block';return;}
+  // Verifica admin via hash (assíncrono, sem expor token)
+  const isAdmin=await verifyAdmin(token);
+  if(isAdmin){
+    SEC.track(true);
+    const u={name:'Admin',isAdmin:true};
+    sessionStorage.setItem('sp_me',JSON.stringify(u));S.me=u;
+    show('screen-admin');aTab('tokens');return;
+  }
+  const tokenUp=token.toUpperCase();
+  const u=S.users.find(x=>x.token===tokenUp);
+  if(!u){SEC.track(false);err.textContent='Token inválido. Verifique e tente novamente.';err.style.display='block';return;}
+  SEC.track(true);
+  if(u.blocked){err.textContent='Acesso bloqueado. Contate o suporte.';err.style.display='block';return;}
+  if(isExpired(u)){sessionStorage.setItem('sp_me',JSON.stringify(u));S.me=u;show('screen-expired');return;}
+  sessionStorage.setItem('sp_me',JSON.stringify(u));S.me=u;show('screen-main');initMain();
+}
+function doCriar(){
+  const name=document.getElementById('c-name').value.trim();
+  const phone=document.getElementById('c-phone').value.trim();
+  const token=document.getElementById('c-token').value.trim().toUpperCase();
+  const err=document.getElementById('c-err');err.style.display='none';
+  if(!name||!phone||!token){err.textContent='Preencha todos os campos.';err.style.display='block';return;}
+  if(SEC.isLocked()){err.textContent=`Muitas tentativas. Aguarde ${SEC.minutesLeft()} min.`;err.style.display='block';return;}
+  if(S.users.find(x=>x.phone===phone)){err.textContent='Telefone já cadastrado. Use o botão Entrar.';err.style.display='block';return;}
+  const tk=S.tokens.find(t=>t.token===token&&!t.used);
+  if(!tk){SEC.track(false);err.textContent='Token inválido ou já utilizado.';err.style.display='block';return;}
+  SEC.track(true);
+  tk.used=true;
+  const u={name,phone,token,blocked:false,joined:new Date().toLocaleString('pt-BR')};
+  S.users.push(u);save();sessionStorage.setItem('sp_me',JSON.stringify(u));S.me=u;show('screen-main');initMain();
+}
+function logout(){sessionStorage.removeItem('sp_me');S.me=null;show('screen-welcome');}
+
+// ── DAYS BADGE ──
+function updateDaysBadge(){
+  if(!S.me||S.me.isAdmin)return;
+  const u=S.users.find(x=>x.token===S.me.token);
+  if(!u)return;
+  const d=daysLeft(u.joined);
+  const badge=document.getElementById('nav-days-badge');
+  const txt=document.getElementById('nav-days-text');
+  if(!badge)return;
+  txt.textContent=d>0?d+' dias restantes':'Expirado';
+  badge.className='nav-days '+(d>7?'ok':d>3?'warn':'critical');
+}
+
+// ── MAIN ──
+function initMain(){
+  document.getElementById('nav-name').textContent=S.me?.name||'—';
+  updateDaysBadge();
+  initBanners();initCounters();renderGames();renderAff();startNotifications();
+}
+
+// ── BANNERS ──
+let bIdx=0;
+function initBanners(){const slides=document.querySelectorAll('.banner-slide'),dots=document.getElementById('bdots');dots.innerHTML='';slides.forEach((_,i)=>{const d=document.createElement('div');d.className='bdot'+(i===0?' active':'');d.onclick=()=>goBanner(i);dots.appendChild(d);});clearInterval(window._bi);window._bi=setInterval(()=>goBanner((bIdx+1)%slides.length),4200);}
+function goBanner(i){bIdx=i;document.getElementById('bslides').style.transform=`translateX(-${i*100}%)`;document.querySelectorAll('.bdot').forEach((d,j)=>d.classList.toggle('active',j===i));}
+
+// ── COUNTERS ──
+let an=0,mb=0;
+function initCounters(){
+  an=9800+ri(0,500);mb=120+ri(0,60);
+  document.getElementById('c-analyses').textContent=an.toLocaleString('pt-BR');
+  document.getElementById('c-members').textContent=mb;
+  setInterval(()=>{an+=ri(1,4);document.getElementById('c-analyses').textContent=an.toLocaleString('pt-BR');},3000);
+  setInterval(()=>{mb+=ri(-3,5);if(mb<90)mb=90;document.getElementById('c-members').textContent=mb;},18000);
+  updTime();setInterval(updTime,60000);
+}
+function updTime(){document.getElementById('c-upd').textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+
+// ── GAMES ──
+function renderGames(){const g=document.getElementById('games-grid');g.innerHTML='';GAMES.forEach(gm=>{const c=document.createElement('div');c.className='gc';c.innerHTML=`<div class="gc-thumb"><div class="gc-emoji">${gm.e}</div><div class="gc-badge">PG SOFT</div></div><div class="gc-body"><div class="gc-name">${gm.name}</div><div class="gc-prov">PG Soft • Slot Game</div><button class="btn-ver" onclick="openModal(${gm.id})"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>VER ESTATÍSTICAS</button></div>`;g.appendChild(c);});}
+
+// ── MODAL ──
+let _mg=null,_cki=null;
+function openModal(id){_mg=GAMES.find(g=>g.id===id);document.getElementById('m-name').textContent=_mg.name;document.getElementById('mov').classList.add('open');applyStats();renderMPS();clearInterval(_cki);_cki=setInterval(tickClock,1000);tickClock();syncMin();}
+function tickClock(){document.getElementById('m-clock').textContent=new Date().toLocaleTimeString('pt-BR');}
+function applyStats(){if(!_mg)return;const s=stats(_mg);document.getElementById('m-prob').textContent=s.p+'%';document.getElementById('m-bar').style.width=s.p+'%';document.getElementById('m-bet').textContent=s.bet;document.getElementById('m-plays').textContent=s.plays+' jogadas';document.getElementById('m-mode').textContent=s.mode;document.getElementById('m-vol').textContent=s.vol;updTime();}
+function renderMPS(){const sc=document.getElementById('mps');sc.innerHTML='';if(!S.affiliates.length){sc.innerHTML='<div style="color:var(--td);font-size:.72rem;padding:5px">Nenhuma plataforma cadastrada</div>';return;}S.affiliates.forEach(a=>{const d=document.createElement('div');d.className='mpc';d.innerHTML=`<div class="mpc-name">${a.name}</div><a class="mpc-btn" href="${a.link}" target="_blank"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> JOGAR</a>`;sc.appendChild(d);});}
+function syncMin(){clearTimeout(window._st);clearInterval(window._si);const now=new Date(),ms=(60-now.getSeconds())*1000-now.getMilliseconds();window._st=setTimeout(()=>{if(document.getElementById('mov').classList.contains('open')){applyStats();window._si=setInterval(()=>{if(document.getElementById('mov').classList.contains('open'))applyStats();},60000);}},ms);}
+function closeModal(){document.getElementById('mov').classList.remove('open');clearInterval(_cki);clearTimeout(window._st);clearInterval(window._si);_mg=null;}
+function closeMov(e){if(e.target===document.getElementById('mov'))closeModal();}
+
+// ── AFFILIATES ──
+function renderAff(){const g=document.getElementById('aff-grid');g.innerHTML='';S.affiliates.forEach(a=>{const c=document.createElement('div');c.className='ac';c.innerHTML=`<div class="an"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>${a.name}</div><div class="ad">${a.desc}</div><a class="btn-acc" href="${a.link}" target="_blank"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>ACESSAR AGORA</a>`;g.appendChild(c);});}
+
+// ── NOTIFICATIONS ──
+const NOMES=['João','Maria','Pedro','Ana','Lucas','Fernanda','Rafael','Juliana','Carlos','Beatriz','Thiago','Camila','Diego','Larissa','Bruno','Aline','Marcos','Priscila','Felipe','Vanessa','Gabriel','Leticia','Eduardo','Isabela','Rodrigo'];
+const ACOES=[(g)=>`está analisando <em>${g}</em>`,(g)=>`acabou de acessar <em>${g}</em>`,(g)=>`viu estatísticas de <em>${g}</em>`,(g)=>`está jogando <em>${g}</em> agora`,(g)=>`encontrou boa entrada em <em>${g}</em>`];
+function spawnNotif(){
+  const container=document.getElementById('notif-container');
+  if(container.children.length>=3){const oldest=container.lastElementChild;if(oldest){oldest.classList.add('out');setTimeout(()=>oldest.remove(),400);}}
+  const nome=ro(NOMES),jogo=ro(GAMES),acao=ro(ACOES)(jogo.name);
+  const notif=document.createElement('div');notif.className='notif';
+  notif.innerHTML=`<div class="notif-icon">${jogo.e}</div><div class="notif-body"><div class="notif-name">${nome}</div><div class="notif-msg">${acao}</div></div><div class="notif-dot"></div>`;
+  container.prepend(notif);
+  setTimeout(()=>{notif.classList.add('out');setTimeout(()=>notif.remove(),400);},5000);
+}
+function startNotifications(){clearInterval(window._notifInt);setTimeout(()=>{spawnNotif();window._notifInt=setInterval(()=>{if(document.getElementById('screen-main').classList.contains('active'))spawnNotif();},ri(6000,12000));},3000);}
+
+// ── ADMIN ──
+function aTab(t){const ts=['tokens','users','affiliates','config'];document.querySelectorAll('.atab').forEach((el,i)=>el.classList.toggle('active',ts[i]===t));document.querySelectorAll('.apanel').forEach(el=>el.classList.remove('active'));const p=document.getElementById('panel-'+t);if(p)p.classList.add('active');if(t==='tokens')renderTT();if(t==='users')renderUT();if(t==='affiliates')renderAT();if(t==='config')loadCfg();}
+function adminGenToken(){const tk=mkTok();S.tokens.push({token:tk,used:false,created:new Date().toLocaleString('pt-BR')});save();const d=document.getElementById('atokout');d.textContent='TOKEN: '+tk;d.style.display='block';renderTT();}
+function renderTT(){document.getElementById('ttable').innerHTML=S.tokens.length===0?'<tr><td colspan="3" style="color:var(--td);text-align:center;padding:13px">Nenhum token gerado ainda</td></tr>':S.tokens.map(t=>`<tr><td style="font-family:monospace;color:${t.used?'#6aad87':'var(--g)'};font-size:.76rem;letter-spacing:1px">${t.token}</td><td>${t.used?'<span class="sb2">⛔ Usado</span>':'<span class="sa">✅ Disponível</span>'}</td><td style="color:var(--td);font-size:.72rem">${t.created}</td></tr>`).join('');}
+function renderUT(){
+  document.getElementById('utable').innerHTML=S.users.length===0
+    ?'<tr><td colspan="6" style="color:var(--td);text-align:center;padding:13px">Nenhum usuário ainda</td></tr>'
+    :S.users.map((u,i)=>{
+      const d=daysLeft(u.joined);
+      const exp=d<=0?'<span class="sb2">Expirado</span>':`<span style="color:${d<=7?'var(--yel)':'var(--g)'};font-size:.72rem">${d}d</span>`;
+      return `<tr><td>${u.name}</td><td style="color:var(--td)">${u.phone}</td><td style="color:var(--td);font-size:.72rem">${u.joined||'—'}</td><td>${exp}</td><td>${u.blocked?'<span class="sb2">⛔ Bloqueado</span>':'<span class="sa">🟢 Ativo</span>'}</td><td><button class="bsm ${u.blocked?'g':'r'}" onclick="togUser(${i})">${u.blocked?'Desbloquear':'Bloquear'}</button></td></tr>`;
+    }).join('');
+}
+function togUser(i){S.users[i].blocked=!S.users[i].blocked;save();renderUT();}
+function addAff(){const name=document.getElementById('af-name').value.trim(),link=document.getElementById('af-link').value.trim(),desc=document.getElementById('af-desc').value.trim();if(!name||!link)return;S.affiliates.push({id:Date.now(),name,link,desc});save();document.getElementById('af-name').value='';document.getElementById('af-link').value='';document.getElementById('af-desc').value='';renderAT();renderAff();}
+function renderAT(){document.getElementById('atable').innerHTML=S.affiliates.map((a,i)=>`<tr><td>${a.name}</td><td style="color:var(--td);font-size:.74rem;max-width:130px;overflow:hidden;text-overflow:ellipsis">${a.link}</td><td><button class="bsm r" onclick="remAff(${i})">Remover</button></td></tr>`).join('');}
+function remAff(i){S.affiliates.splice(i,1);save();renderAT();renderAff();}
+function loadCfg(){document.getElementById('cfg-solicit').value=S.config.solicitLink||'';document.getElementById('cfg-wa').value=S.config.waLink||'';document.getElementById('cfg-renew').value=S.config.renewLink||'';}
+function saveConfig(){
+  S.config.solicitLink=document.getElementById('cfg-solicit').value.trim();
+  S.config.waLink=document.getElementById('cfg-wa').value.trim();
+  S.config.renewLink=document.getElementById('cfg-renew').value.trim();
+  save();
+  applyLinks();
+  const ok=document.getElementById('cfg-ok');ok.style.display='flex';setTimeout(()=>ok.style.display='none',2500);
+}
+function applyLinks(){
+  const b=document.getElementById('btn-solicitar');if(b)b.href=S.config.solicitLink||'#';
+  const wa=document.getElementById('float-wa');if(wa)wa.href=S.config.waLink||'#';
+  const rn=document.getElementById('btn-renew');if(rn)rn.href=S.config.renewLink||'#';
+}
+
+// ── BOOT ──
+window.addEventListener('DOMContentLoaded',()=>{
+  applyLinks();
+  runLoading();
+  const me=sessionStorage.getItem('sp_me');
+  if(me){
+    const p=JSON.parse(me);S.me=p;
+    if(p.isAdmin){show('screen-admin');aTab('tokens');}
+    else{
+      const u=S.users.find(x=>x.token===p.token);
+      if(u&&isExpired(u)){show('screen-expired');}
+      else{show('screen-main');initMain();}
+    }
+  }else{show('screen-welcome');}
+});
+</script>
+</body>
+</html>
